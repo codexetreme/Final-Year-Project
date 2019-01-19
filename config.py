@@ -1,5 +1,4 @@
-import numpy as np
-
+import os
 
 # Base Configuration Class
 # Don't use this class directly. Instead, sub-class it and override
@@ -23,7 +22,7 @@ class Config(object):
     BATCH_SIZE = 64
 
     # Total words used in the vocab list, higher the number, slower will be the training.
-    VOCAB_SIZE = 6000
+    VOCAB_SIZE = 6500
 
     # The maximum total number of words per sentence. There may be padding to make sure every
     # sentence is of uniform 50 words length, this is defined by the USE_PADDING_FOR_SENTENCE option
@@ -42,10 +41,15 @@ class Config(object):
     MAX_SENTENCES_PER_DOCUMENT = 50
 
 
+    # This is the minimum number of times the word should occur in the corpus to be included in the 
+    # vocabulary list
+    MIN_VOCAB_COUNT = 5
+
     # Sets wether the sentences have to be padded or not.
     # True: will pad documents to MAX_SENTENCE_PER_DOCUMENT length,
     # False (default): no padding is applied
     USE_PADDING_FOR_DOCUMENT = False
+
 
     # Number of training steps per epoch
     # This doesn't need to match the size of the training set. Tensorboard
@@ -87,9 +91,36 @@ class Config(object):
     #     True: (don't use). Set layer in training mode even when predicting
     TRAIN_BN = False  # Defaulting to False since batch size is often small
 
-    def __init__(self):
+
+
+
+    class Paths(object):
+        """Class to hold all the path config variables"""
+        
+        
+        # Set this to a compiled version of glove (ie the build folder)
+        GLOVE_PATH = ''
+
+        # Set this is to the path of the text file that contains the dataset corpus
+        PATH_TO_CORPUS = ''
+
+        # This path is where the VOCAB_FILE_NAME file will be saved
+        PATH_TO_VOCAB_TXT = ''
+        # Path to the root folder of processed pkl and .dat files
+        PROCESSED_GLOVE_PATH = ''
+        # The path to the dataset
+        PATH_TO_DATASET = ''
+        def __init__(self):
+            # Config.Paths.PATH_TO_VOCAB_TXT = os.path.join(Config.Paths.PATH_TO_VOCAB_TXT,Config.Paths.VOCAB_FILE_NAME)
+            # assert GLOVE_PATH is not None,"GLOVE_PATH is not SET, please set it to the build folder of glove(v1.2)" 
+            # assert PATH_TO_CORPUS is not None,"PATH_TO_CORPUS is not SET, please set it to the dataset's corpus text file" 
+            # assert PATH_TO_VOCAB_TXT is not None,"PATH_TO_VOCAB_TXT is not SET, please set it to a location which is acccesible by you" 
+            pass
+    def __init__(self,make_vocab=False):
         """Set values of computed attributes."""
         # Effective batch size
+
+        self.paths = Config.Paths()
         pass
     def display(self):
         """Display Configuration values."""
