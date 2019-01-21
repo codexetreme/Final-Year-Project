@@ -1,35 +1,17 @@
 import torch
-import torch.utils.data as datautil
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import numpy as np
-
-from utils import split_story, make_target_vocab, load_glove_vectors
-from config import Config
-
 import os
-import sys
-import subprocess
+import itertools
+from utils import make_target_vocab,load_glove_vectors,split_story
 class TextDataset(): 
 	''' Dataset Loader for a text dataset'''
 		
-	def create_embedding_matrix(self,emb_dim):
-		matrix_len = self.config.VOCAB_SIZE
-		weights_matrix = np.zeros((matrix_len, emb_dim))
-		words_found = 0
-		target_vocab = make_target_vocab(self.config)
-		glove = load_glove_vectors(self.config)
-		for i, word in enumerate(target_vocab):
-		    try: 
-		        weights_matrix[i] = glove[word]
-		        words_found += 1
-		    except KeyError:
-		        weights_matrix[i] = np.random.normal(scale=0.6, size=(emb_dim, ))
-
 	def get_list_of_docs(self,root_dir):
 		return os.listdir(root_dir)
 
-	def __init__(self, config=None,run_type=None, transform=None):
+	def __init__(self,word2idx,dataset_vocab, config=None,run_type=None, transform=None):
 		"""
 		Args:
 			root_dir (string): Directory with all the images.
@@ -39,9 +21,9 @@ class TextDataset():
 		# self.landmarks_frame = pd.read_csv(csv_file)
 		self.root_dir = os.path.abspath(config.paths.PATH_TO_DATASET)
 		self.transform = transform
+		self.word2idx = word2idx
+		self.dataset_vocab = dataset_vocab
 		self.file_list = self.get_list_of_docs(self.root_dir)
-		print ("total length ",len(self.file_list))
-		print ("first 5 file names",self.file_list[:5])
 		if config is not None:
 			self.config = config
 		
@@ -49,33 +31,31 @@ class TextDataset():
 		return len(self.file_list)
 
 	def __getitem__(self, idx):
-		file = open(os.path.join(self.root_dir,self.file_list[idx]), encoding='utf-8')
-		text = file.read()
-		file.close()
-		story, highlights = split_story(text)
+		_path = os.path.join(self.root_dir,self.file_list[idx])
+		
+		with open(_path) as file:
+			text = file.read()
+			text = text.replace('-LRB-','(')
+			text = text.replace('-RRB-',')')
+			story, highlights = split_story(text)
+		# Get all the 
+		s = np.array(story.splitlines())
+		# Pick all non empty sentences
+		k = s[s!='']
+		# Split all the sentences on white space, to get the words
+		k = np.char.split(k)
+		# Pad the resulting array of lists. Each list represents the words of that sentence
+		# This function, pads all the lists to the length of the max list in the array
+		k = np.array(list(itertools.zip_longest(*k, fillvalue=self.config.PADDING_SEQ))).T
+		# In case, there are sentences with less than words, we pad all the lists with 55 pad tokens
+		k = np.pad(k,((0,0),(0,55)),'constant',constant_values=self.config.PADDING_SEQ)
+		# print (k[0:2])
+		# Here we first strip the documents to required length
+		k = k[:self.config.MAX_SENTENCES_PER_DOCUMENT]
+		# Here the sentences are now stripped to required length, thus resulting in the final shape of (num_sentences,50)
+		k = k[:,:self.config.MAX_WORDS_PER_SENTENCE]
+		print (k.shape)
+		print (k)
+		# print ("post cut",k.shape)
 		return story, highlights
 
-
-config = Config()
-config.paths.GLOVE_PATH = '/home/codexetreme/Desktop/Source/GloVe-1.2/build'
-config.paths.PROCESSED_GLOVE_PATH = '/home/codexetreme/Desktop/datasets/armageddon_dataset'
-config.paths.PATH_TO_CORPUS = '/home/codexetreme/Desktop/datasets/armageddon_dataset/corpus.txt'
-config.paths.PATH_TO_VOCAB_TXT = '/home/codexetreme/Desktop/datasets/armageddon_dataset/vocab.txt'
-config.paths.PATH_TO_DATASET = '/home/codexetreme/Desktop/datasets/armageddon_dataset/cnn_stories_tokenized'
-dataset = TextDataset(config=config)
-data_loader = datautil.DataLoader(dataset=dataset,batch_size=1,num_workers=4,shuffle=False)
-
-create_vocabulary_from_dataset()
-dataset.create_embedding_matrix(100)
-
-
-# _i = 1
-
-# for i,(s,h) in enumerate(data_loader):
-# 	print ("i = ", i)
-# 	print ("story", s)
-# 	print ("highlight", h)
-# 	print ("-"*50)
-# 	_i-=1
-# 	if _i<-1:
-# 		break
