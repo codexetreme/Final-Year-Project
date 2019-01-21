@@ -45,8 +45,10 @@ class Config(object):
     # vocabulary list
     MIN_VOCAB_COUNT = 5
 
+    # The dimentions for the words from glove. Default = 100
+    WORD_DIMENTIONS = 100
     # Sets wether the sentences have to be padded or not.
-    # True: will pad documents to MAX_SENTENCE_PER_DOCUMENT length,
+    # True: will pad documents to MAX_SENTENCES_PER_DOCUMENT length,
     # False (default): no padding is applied
     USE_PADDING_FOR_DOCUMENT = False
 
@@ -97,7 +99,6 @@ class Config(object):
     class Paths(object):
         """Class to hold all the path config variables"""
         
-        
         # Set this to a compiled version of glove (ie the build folder)
         GLOVE_PATH = ''
 
@@ -106,10 +107,18 @@ class Config(object):
 
         # This path is where the VOCAB_FILE_NAME file will be saved
         PATH_TO_VOCAB_TXT = ''
-        # Path to the root folder of processed pkl and .dat files
+        
+        # Path to the root folder of processed pkl and .dat files for glove
         PROCESSED_GLOVE_PATH = ''
+        
         # The path to the dataset
         PATH_TO_DATASET = ''
+
+        # Path to folder for dataset's selected vocabulary
+        # This contains the word2id and the vectors as .dat files
+        PATH_TO_DATASET_S_VOCAB = ''
+
+
         def __init__(self):
             # Config.Paths.PATH_TO_VOCAB_TXT = os.path.join(Config.Paths.PATH_TO_VOCAB_TXT,Config.Paths.VOCAB_FILE_NAME)
             # assert GLOVE_PATH is not None,"GLOVE_PATH is not SET, please set it to the build folder of glove(v1.2)" 
