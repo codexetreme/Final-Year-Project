@@ -33,8 +33,11 @@ class Config(object):
     # False: no padding is applied
     USE_PADDING_FOR_SENTENCE = True
 
-    # String that represents the padding.
+    # Strings that represent the special padding sequences.
     PADDING_SEQ='<PAD>'
+    UNKNOWN_SEQ='<UNK>'
+    START_SEQ='<START>'
+    END_SEQ='<END>'
 
     # Maximum number of sentences per document, these may be padded,
     # defined by USE_PADDING_FOR_DOCUMENT
@@ -61,6 +64,9 @@ class Config(object):
     # might take a while, so don't set this too small to avoid spending
     # a lot of time on validation stats.
     STEPS_PER_EPOCH = 1000
+
+    # Number of epochs
+    NUM_EPOCHS = 2
 
     # Number of validation steps to run at the end of every training epoch.
     # A bigger number improves accuracy of validation stats, but slows
