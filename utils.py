@@ -9,7 +9,10 @@ def split_story(doc):
 	# split into story and highlights
 	story, highlights = doc[:index], doc[index:].split('@highlight')
 	# strip extra white space around each highlight
-	highlights = [h.strip() for h in highlights if len(h) > 0]
+	def pad_char(a):
+		 a = a.strip() + ' .\n'
+		 return a
+	highlights = [ pad_char(h) for h in highlights if len(h) > 0]
 	return story, highlights
 
 
@@ -101,9 +104,9 @@ def make_target_vocab(config):
 	idx = 4
 	with open(config.paths.PATH_TO_VOCAB_TXT) as file:
 		for line in file.readlines():
-			word = line.split(' ')[0].lower()
+			word = line.split(' ')[0]
 			targetwords2id[word] = idx
-			idx += 1 
+			idx += 1
 			try:
 				vect = np.array(glove[word]).astype(np.float)
 			except KeyError:
@@ -115,15 +118,14 @@ def make_target_vocab(config):
 	pickle.dump(list(targetwords2id.keys()), open(os.path.join(config.paths.PATH_TO_DATASET_S_VOCAB,'words.pkl'), 'wb'))
 	pickle.dump(targetwords2id, open(os.path.join(config.paths.PATH_TO_DATASET_S_VOCAB,'words2idx.pkl'), 'wb'))
 
-	return targetwords2id.keys(),glove
 
 def load_target_vocab(config):
 	path = config.paths.PATH_TO_DATASET_S_VOCAB
 	vectors = bcolz.open(os.path.join(path,'target_vocab.dat'))[:]
 	words = pickle.load(open(os.path.join(path,'words.pkl'), 'rb'))
 	word2idx = pickle.load(open(os.path.join(path,'words2idx.pkl'), 'rb'))
-	dataset_vocab = {w: vectors[word2idx[w]] for w in words}
-	return word2idx,dataset_vocab
+	dataset_vectors = {w: vectors[word2idx[w]] for w in words}
+	return word2idx,dataset_vectors
 
 def create_vocabulary_from_dataset(config):
 	cmd = [os.path.join(config.paths.GLOVE_PATH,"vocab_count"), "-min-count",str(config.MIN_VOCAB_COUNT)
@@ -137,18 +139,16 @@ def create_vocabulary_from_dataset(config):
 		vocab_file.close()
 
 
-def create_embedding_matrix(config):
-	matrix_len = config.VOCAB_SIZE
+def create_embedding_matrix(config,target_vocab,vectors):
+	matrix_len = len(target_vocab)
 	weights_matrix = np.zeros((matrix_len, config.WORD_DIMENTIONS))
 	words_found = 0
-	target_vocab,glove = make_target_vocab(config)
-	
 	for i, word in enumerate(target_vocab):
 		try: 
-			weights_matrix[i] = glove[word.lower()]
+			weights_matrix[i] = vectors[word]
 			words_found += 1
 		except KeyError:
 			weights_matrix[i] = np.random.normal(scale=0.6, size=(config.WORD_DIMENTIONS, ))
-	return weights_matrix,glove
+	return weights_matrix
 
 
