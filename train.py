@@ -26,7 +26,7 @@ def main():
 	dataset = nc.SafeDataset(dataset)
 	# data_loader = datautil.DataLoader(dataset=dataset,batch_size=64,num_workers=4,shuffle=False)
 	data_loader = nc.SafeDataLoader(dataset=dataset,batch_size=64,num_workers=4,shuffle=False)
-	model = SentenceEncoder(target_vocab = word2idx.keys(), vectors =dataset_vectors, config = config)
+	model = SentenceEncoder(target_vocab = word2idx.keys(), vectors = dataset_vectors, config = config)
 	epoch = 0
 	for epoch in tqdm(range(epoch,config.NUM_EPOCHS)):
 		model.train()
@@ -43,8 +43,16 @@ def main():
 	# 	if _i<-1:
 	# 		break
 
+def test_logic():
+	import torch
+	a = torch.empty(3200,40).uniform_(0, 1)
+	b = torch.empty(3200,50).uniform_(0, 1)
+	print (torch.cat((a,b),dim=1).shape)
+
+
 if __name__ == '__main__':
 	main()
+	# test_logic()
 
 
 
