@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
-
+import torch.nn.functional as F
 from utils import create_embedding_matrix
 
 
@@ -28,34 +28,26 @@ class SentenceEncoder(nn.Module):
 		print ("self.num_embeddings",self.num_embeddings)
 		print ("self.embedding_dim",self.embedding_dim)
 
-		self.conv1 = nn.Conv1d(in_channels=1,out_channels=40,kernel_size=(1,self.config.WORD_DIMENTIONS))
-		self.conv2 = nn.Conv1d(in_channels=1,out_channels=50,kernel_size=(2,self.config.WORD_DIMENTIONS))
-		self.conv3 = nn.Conv1d(in_channels=1,out_channels=50,kernel_size=3)
-		self.conv4 = nn.Conv1d(in_channels=1,out_channels=60,kernel_size=4)
-		self.conv5 = nn.Conv1d(in_channels=1,out_channels=60,kernel_size=5)
-		self.conv6 = nn.Conv1d(in_channels=1,out_channels=70,kernel_size=6)
-		self.conv7 = nn.Conv1d(in_channels=1,out_channels=70,kernel_size=7)
+		Ks = [(1,40),(2,50),(3,50),(4,60),(5,60),(6,70),(7,70)]
+		
+		self.convs = nn.ModuleList([nn.Conv1d(1,out_channels=out_c,kernel_size=(k,self.config.WORD_DIMENTIONS)) for (k,out_c) in Ks])
 	
-		self.max_pool = nn.MaxPool1d(kernel_size=(1,self.config.WORD_DIMENTIONS))
+		self.max_pool = nn.MaxPool1d(kernel_size=self.config.MAX_SENTENCES_PER_DOCUMENT)
 
+	def conv_and_pool(self, x, conv):
+		x = torch.tanh(conv(x)).squeeze(3)  # (N * doc_len, Co, W)
+		x = F.max_pool1d(x, x.size(2)).squeeze(2) # (N * doc_len, Co)
+		return x
 
 	def forward(self,x):
-		x = self.embedding_layer(x)
-		x = x.unsqueeze(1).view(x.shape[0],1,-1,self.config.WORD_DIMENTIONS)
+		x = self.embedding_layer(x) # (N,doc_len,sentence_len,dims)
+		x = x.unsqueeze(1).view(-1,1,self.config.MAX_SENTENCES_PER_DOCUMENT,self.config.WORD_DIMENTIONS) # (N*doc_len,Ci,sentence_len,dims)
 
-		# print ("x: ",x.shape)
-		x_1 = self.conv1(x)
-		# x_2 = self.conv2(x)
-		# x_1 = self.max_pool(x_1)
-		# print(x_1.shape)
-		# x_2 = self.conv2(x)
-		# x_3 = self.conv3(x)
-		# x_4 = self.conv4(x)
-		# x_5 = self.conv5(x)
-		# x_6 = self.conv6(x)
-		# x_7 = self.conv7(x)
-
-		return x_1
+		x = [self.conv_and_pool(x,i) for i in self.convs]
+		x = torch.cat(x,dim=1)
+		print ('x_shape:', x.shape)
+			
+		return x
 
 
 
