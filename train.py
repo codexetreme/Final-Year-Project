@@ -2,11 +2,10 @@ import torch.utils.data as datautil
 from utils import *
 from config import Config
 from data_loader import TextDataset
-from model import SentenceEncoder
+from model import SentenceEncoder,DocumentEncoder
 import nonechucks as nc
 import os
 from tqdm import tqdm
-
 
 def main():
 	config = Config()
@@ -27,21 +26,15 @@ def main():
 	# data_loader = datautil.DataLoader(dataset=dataset,batch_size=64,num_workers=4,shuffle=False)
 	data_loader = nc.SafeDataLoader(dataset=dataset,batch_size=64,num_workers=4,shuffle=False)
 	model = SentenceEncoder(target_vocab = word2idx.keys(), vectors = dataset_vectors, config = config)
+	doc_enc = DocumentEncoder(config=config)
 	epoch = 0
 	for epoch in tqdm(range(epoch,config.NUM_EPOCHS)):
 		model.train()
+		doc_enc.train()
 		for i,(story,highlights) in tqdm(enumerate(data_loader)):
 			p = model(story)
-	# _i = 1
-
-	# for i,(s,h) in enumerate(data_loader):
-	# 	# print ("story", s)
-	# 	# print ("highlight", h)
-	# 	print ("-"*50)
-	# 	_i-=1
-
-	# 	if _i<-1:
-	# 		break
+			p = doc_enc(p)
+			
 
 def test_logic():
 	import torch
@@ -53,9 +46,3 @@ def test_logic():
 if __name__ == '__main__':
 	main()
 	# test_logic()
-
-
-
-
-
-
