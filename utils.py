@@ -141,14 +141,42 @@ def create_vocabulary_from_dataset(config):
 
 def create_embedding_matrix(config,target_vocab,vectors):
 	matrix_len = len(target_vocab)
-	weights_matrix = np.zeros((matrix_len, config.WORD_DIMENTIONS))
+	weights_matrix = np.zeros((matrix_len, config.dataset_options.WORD_DIMENTIONS))
 	words_found = 0
 	for i, word in enumerate(target_vocab):
 		try: 
 			weights_matrix[i] = vectors[word]
 			words_found += 1
 		except KeyError:
-			weights_matrix[i] = np.random.normal(scale=0.6, size=(config.WORD_DIMENTIONS, ))
+			weights_matrix[i] = np.random.normal(scale=0.6, size=(config.dataset_options.WORD_DIMENTIONS, ))
 	return weights_matrix
 
 
+
+'''
+These 3 functions are used to create a nested version of SimpleNamespace when 
+we need to Namespace nested dictionaries
+
+Example:
+
+    >>> mydict = {'a':123, 'b':{'c':234,'d':345}}
+    >>> ns = wrap_namespace (mydict)
+    >>> ns.b.c
+    234
+    >>> ns.a
+    123
+
+'''
+from functools import singledispatch
+from types import SimpleNamespace
+@singledispatch
+def wrap_namespace(ob):
+    return ob
+
+@wrap_namespace.register(dict)
+def _wrap_dict(ob):
+    return SimpleNamespace(**{k: wrap_namespace(v) for k, v in ob.items()})
+
+@wrap_namespace.register(list)
+def _wrap_list(ob):
+    return [wrap_namespace(v) for v in ob]
