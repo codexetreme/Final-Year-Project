@@ -28,15 +28,17 @@ class TextDataset():
 		context = np.char.split(context[context!=''])
 		# Pad the resulting array of lists. Each list represents the words of that sentence
 		# This function, pads all the lists to the length of the max list in the array
-		context = np.array(list(itertools.zip_longest(*context, fillvalue=self.config.PADDING_SEQ))).T
-		# In case, there are sentences with less than words, we pad all the lists with 55 pad tokens
-		context = np.pad(context,((0,55),(0,55)),'constant',constant_values=self.config.PADDING_SEQ)
+		context = np.array(list(itertools.zip_longest(*context, fillvalue=self.config.padding_tokens.PADDING_SEQ))).T
+
+		if self.config.dataset_options.USE_PADDING_FOR_DOCUMENT:
+			# In case, there are sentences with less than words, we pad all the lists with 55 pad tokens
+			context = np.pad(context,((0,55),(0,55)),'constant',constant_values=self.config.padding_tokens.PADDING_SEQ)
 		# Here the document is stripped to required length,  thus resulting in the final shape of (num_sentences,50)
-		context = context[:self.config.MAX_SENTENCES_PER_DOCUMENT,:self.config.MAX_WORDS_PER_SENTENCE]
+		context = context[:self.config.dataset_options.MAX_SENTENCES_PER_DOCUMENT,:self.config.dataset_options.MAX_WORDS_PER_SENTENCE]
 
 		context_idxs = torch.tensor([self.get_word2id(w) for w in context.reshape(-1)],dtype=torch.long) 
 		# for i,word in enumerate(context):
-		return context_idxs.view(-1,self.config.MAX_WORDS_PER_SENTENCE)
+		return context_idxs.view(-1,self.config.dataset_options.MAX_WORDS_PER_SENTENCE)
 
 	def __init__(self,word2idx,dataset_vocab, config=None,run_type=None, transform=None):
 		"""
@@ -64,7 +66,8 @@ class TextDataset():
 			text = file.read()
 			text = text.replace('-LRB-','(')
 			text = text.replace('-RRB-',')')
-			text = text.lower()
+			# this is removed because we want to preserve the text as close to the original as possible
+			# text = text.lower()
 			story, highlights = split_story(text)
 			highlights = ''.join(highlights)
 
