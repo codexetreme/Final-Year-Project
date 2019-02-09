@@ -2,9 +2,6 @@ import os
 from configparser import ConfigParser
 from utils import wrap_namespace
 from ast import literal_eval as Eval
-# Base Configuration Class
-# Don't use this class directly. Instead, sub-class it and override
-# the configurations you need to change.
 
 
 class Configuration(object):
