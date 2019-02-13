@@ -152,31 +152,3 @@ def create_embedding_matrix(config,target_vocab,vectors):
 	return weights_matrix
 
 
-
-'''
-These 3 functions are used to create a nested version of SimpleNamespace when 
-we need to Namespace nested dictionaries
-
-Example:
-
-    >>> mydict = {'a':123, 'b':{'c':234,'d':345}}
-    >>> ns = wrap_namespace (mydict)
-    >>> ns.b.c
-    234
-    >>> ns.a
-    123
-
-'''
-from functools import singledispatch
-from types import SimpleNamespace
-@singledispatch
-def wrap_namespace(ob):
-    return ob
-
-@wrap_namespace.register(dict)
-def _wrap_dict(ob):
-    return SimpleNamespace(**{k: wrap_namespace(v) for k, v in ob.items()})
-
-@wrap_namespace.register(list)
-def _wrap_list(ob):
-    return [wrap_namespace(v) for v in ob]
