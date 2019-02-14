@@ -33,8 +33,8 @@ def process_glove(glove_path,dims):
 	Run this function once to generate the respective pickle files.
 
 	'''
-	path = os.path.join(glove_path,'glove.6B.{dims}d.txt'.format(dims=dims))
-	dat_file_name = os.path.join(glove_path,'glove.6B.{dims}d.dat'.format(dims=dims))
+	path = os.path.join(glove_path,f'glove.6B.{dims}d.txt')
+	dat_file_name = os.path.join(glove_path,f'glove.6B.{dims}d.dat')
 	print (path)
 	words = []
 	idx = 0
@@ -56,8 +56,7 @@ def process_glove(glove_path,dims):
 	pickle.dump(words, open(f'{glove_path}/6B.100_words.pkl', 'wb'))
 	pickle.dump(word2idx, open(f'{glove_path}/6B.100_idx.pkl', 'wb'))
 
-# process_glove('/home/codexetreme/Desktop/datasets/',100)
-
+# process_glove('/Users/balajims10/Downloads/DATASETS/glove_files',100)
 
 def load_glove_vectors(config):
 	glove_path = config.paths.PROCESSED_GLOVE_PATH
@@ -98,7 +97,7 @@ def make_target_vocab(config):
 	targetwords2id['<UNK>'] = 3
 	
 	# for the vectors for these 4 words above, since these arent present in the glove vectors
-	vect = np.random.normal(scale=0.6,size=(4*config.WORD_DIMENTIONS, ))
+	vect = np.random.normal(scale=0.6,size=(4*config.dataset_options.WORD_DIMENTIONS, ))
 	vectors.append(vect )
 
 	idx = 4
@@ -110,10 +109,10 @@ def make_target_vocab(config):
 			try:
 				vect = np.array(glove[word]).astype(np.float)
 			except KeyError:
-				vect = np.random.normal(scale=0.6, size=(config.WORD_DIMENTIONS, ))
+				vect = np.random.normal(scale=0.6, size=(config.dataset_options.WORD_DIMENTIONS, ))
 			finally:
 				vectors.append(vect)
-	vectors = bcolz.carray(vectors[1:].reshape((-1, config.WORD_DIMENTIONS)), rootdir=dat_file_name, mode='w')
+	vectors = bcolz.carray(vectors[1:].reshape((-1, config.dataset_options.WORD_DIMENTIONS)), rootdir=dat_file_name, mode='w')
 	vectors.flush()
 	pickle.dump(list(targetwords2id.keys()), open(os.path.join(config.paths.PATH_TO_DATASET_S_VOCAB,'words.pkl'), 'wb'))
 	pickle.dump(targetwords2id, open(os.path.join(config.paths.PATH_TO_DATASET_S_VOCAB,'words2idx.pkl'), 'wb'))
@@ -128,8 +127,8 @@ def load_target_vocab(config):
 	return word2idx,dataset_vectors
 
 def create_vocabulary_from_dataset(config):
-	cmd = [os.path.join(config.paths.GLOVE_PATH,"vocab_count"), "-min-count",str(config.MIN_VOCAB_COUNT)
-		,"-max-vocab",str(config.VOCAB_SIZE)]
+	cmd = [os.path.join(config.paths.GLOVE_PATH,"vocab_count"), "-min-count",str(config.dataset_options.MIN_VOCAB_COUNT)
+		,"-max-vocab",str(config.dataset_options.VOCAB_SIZE)]
 	corpus_file = open(config.paths.PATH_TO_CORPUS,'r')
 	vocab_file = open(config.paths.PATH_TO_VOCAB_TXT,'w+')
 	try:
