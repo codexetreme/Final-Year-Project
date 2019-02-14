@@ -6,5 +6,5 @@
 for i in `ls $1`
 do
     i=$1/$i
-    cat $i >> $2/corpus.txt
+    cat $i | sed -e 's/-LRB-/(/g' -e 's/-RRB-/)/g' >> $2/corpus.txt
 done
