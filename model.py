@@ -28,20 +28,15 @@ class SentenceEncoder(nn.Module):
         print ("self.num_embeddings",self.num_embeddings)
         print ("self.embedding_dim",self.embedding_dim)
 
-        Ks = [(1,40),(2,50),(3,50),(4,60),(5,60),(6,70),(7,70)]
-        
+        Ks = np.array(self.config.sentence_enc.FILTER_SIZES)
+        self.embedding_size = np.sum(Ks[:,1])
         self.convs = nn.ModuleList([nn.Conv1d(1,out_channels=out_c,kernel_size=(k,self.config.dataset_options.WORD_DIMENTIONS)) for (k,out_c) in Ks])
-    
         self.max_pool = nn.MaxPool1d(kernel_size=self.config.dataset_options.MAX_SENTENCES_PER_DOCUMENT)
-
-        self.highway_layer = nn.ModuleList([Highway(input_size, 3, f=torch.nn.functional.relu) for i,input_size in Ks])
+        self.highway_layer = Highway(size=self.embedding_size,num_layers = 1, f=torch.nn.functional.relu)
 
     def conv_and_pool(self, x, conv):
         x = torch.tanh(conv(x)).squeeze(3)  # (N * doc_len, Co, W)
         x = F.max_pool1d(x, x.size(2)).squeeze(2) # (N * doc_len, Co)
-        # TODO:
-        # We apply the highway network as the paper requires it to be applied if the sentence encoder is a CNN
-
         return x
 
     def forward(self,x):
@@ -50,8 +45,10 @@ class SentenceEncoder(nn.Module):
 
         x = [self.conv_and_pool(x,i) for i in self.convs]
         x = torch.cat(x,dim=1)
-        x = x.view(self.config.globals.BATCH_SIZE,-1,400)
-        print ('x_shape:', x.shape)
+
+        x = self.highway_layer(x)
+        x = x.view(self.config.globals.BATCH_SIZE,-1,self.embedding_size)
+        # print ('x_shape:', x.shape)
             
         return x
 
@@ -66,12 +63,20 @@ class DocumentEncoder(nn.Module):
         super(DocumentEncoder,self).__init__()
         if config is not None:
             self.config = config
-        hidden_size = 50
-        self.gru_layer = nn.GRU(input_size=400,hidden_size=hidden_size,num_layers=1,batch_first=True,bidirectional=True)
+        
+        self.gru_layer = nn.GRU(input_size=400,hidden_size=self.config.document_enc.HIDDEN_SIZE,num_layers=1,batch_first=True,bidirectional=self.config.document_enc.BIDIRECTIONAL)
+        
+        hidden_size = self.config.document_enc.HIDDEN_SIZE
+        if self.config.document_enc.BIDIRECTIONAL:
+            hidden_size = hidden_size * 2
+        
         self.D_i = nn.Sequential(
-                # Due to bi directional, we multipl the hidden size by 2
-                nn.Linear(2*hidden_size,2*hidden_size),
-                nn.BatchNorm1d(2*hidden_size),
+                # Due to bi directional, we multiply the hidden size by 2
+                # This is taken care of above.
+                nn.Linear(hidden_size,hidden_size),
+                # TODO: change this batch norm to something nice, as it cannot handle batch_size=1
+                # FIXME: Make the proper document calc layer, this is not correct right now.
+                # nn.BatchNorm1d(hidden_size),
                 nn.Tanh()
                 )
 
@@ -90,8 +95,8 @@ class DocumentEncoder(nn.Module):
         D_i,output(ie,H_i)
         '''
         output,h_n = self.gru_layer(x)
-        D_i = self.D_i(h_n.view(self.config.BATCH_SIZE,-1))
-        print ('Document_encoder_shape',D_i.shape)
-        print ('output_shape',output.shape)
+        D_i = self.D_i(h_n.view(self.config.globals.BATCH_SIZE,-1))
+        # print ('Document_encoder_shape',D_i.shape)
+        # print ('output_shape',output.shape)
         return D_i,output
 
