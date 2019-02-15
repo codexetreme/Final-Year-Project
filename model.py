@@ -70,15 +70,9 @@ class DocumentEncoder(nn.Module):
         if self.config.document_enc.BIDIRECTIONAL:
             hidden_size = hidden_size * 2
         
-        self.D_i = nn.Sequential(
-                # Due to bi directional, we multiply the hidden size by 2
-                # This is taken care of above.
-                nn.Linear(hidden_size,hidden_size),
-                # TODO: change this batch norm to something nice, as it cannot handle batch_size=1
-                # FIXME: Make the proper document calc layer, this is not correct right now.
-                # nn.BatchNorm1d(hidden_size),
-                nn.Tanh()
-                )
+        self.linear = nn.Linear(hidden_size,hidden_size)
+        self.bias = nn.Parameter(torch.FloatTensor(hidden_size).uniform_(-0.1,0.1))
+        
 
     def forward(self,x):
         '''
@@ -95,7 +89,12 @@ class DocumentEncoder(nn.Module):
         D_i,output(ie,H_i)
         '''
         output,h_n = self.gru_layer(x)
-        D_i = self.D_i(h_n.view(self.config.globals.BATCH_SIZE,-1))
+        n_d = output.shape[1]
+        output = torch.sum(output,dim=1)
+        output = output/n_d
+        output = self.linear(output)
+        output = output+self.bias
+        D_i = torch.tanh(output)
         # print ('Document_encoder_shape',D_i.shape)
         # print ('output_shape',output.shape)
         return D_i,output
