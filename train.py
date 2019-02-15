@@ -35,6 +35,7 @@ def main():
 	target_net = DQN(target_vocab = word2idx.keys(),vectors = dataset_vectors,config = config).to(device)
 	target_net.load_state_dict(policy_net.state_dict())
 	target_net.eval()
+	
 	reward_func = Reward()
 	h = reward_func.get_reward([['hello']],[[['this is a good hello']]])
 	print (h)
@@ -49,6 +50,8 @@ def main():
 		# Putting this here as we need q_values one way or the other
 		q_values = policy_net(doc,get_q_approx=True,sum_i=state['sum_i'])
 
+		if iter%1000 == 0:
+			config.dqn.EPS_START -= config.dqn.EPS_DECAY
 		if sample < config.dqn.EPS_START:
 			i = np.random.randint(low=0,high=doc.shape[1]-1)
 			a_i = (i,doc[0,i])
@@ -68,17 +71,24 @@ def main():
 
 	optimizer = torch.optim.RMSprop(policy_net.parameters())
 	memory = ReplayMemory(config.dqn.REPLAY_MEM_SIZE)
+	
 	__i = 3
 	epoch = 0
+	iter = 0
+	
 	for epoch in tqdm(range(epoch,config.globals.NUM_EPOCHS)):
 		policy_net.train()
 		state = {'curr_summary_ids':[],'curr_summary':[],'sum_i':torch.zeros((100))}
 		for i,(story,highlights,text) in tqdm(enumerate(data_loader)):
+			iter = iter + 1
+
 			if i>3:
 				break
+			
 			story = story.to(device)
 			highlights = highlights.to(device)
 			print (text)
+			
 			# # Hidden representations for the document's sentences
 			# # Squeezed, cause batch_size is 1
 			# H_i,D_i,x = policy_net(story)
