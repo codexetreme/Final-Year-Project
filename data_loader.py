@@ -5,12 +5,19 @@ import numpy as np
 import os
 import itertools
 from utils import make_target_vocab,load_glove_vectors,split_story
+import functools
+import glob
+import operator
+
 class TextDataset(): 
 	''' Dataset Loader for a text dataset'''
 		
-	def get_list_of_docs(self,root_dir):
-		return os.listdir(root_dir)
-
+	def get_list_of_docs(self,root_dirs):
+		dirs = []
+		for dir in root_dirs:
+			dirs.append(glob.glob(dir + '/*'))
+		dirs = functools.reduce(operator.iconcat, dirs, [])
+		return dirs
 	def get_word2id(self,word):
 		try:
 			id = self.word2idx[word]
@@ -47,21 +54,22 @@ class TextDataset():
 			transform (callable, optional): Optional transform to be applied
 				on a sample.
 		"""
-		self.root_dir = os.path.abspath(config.paths.PATH_TO_DATASET)
+		if config is not None:
+			self.config = config
+
+		self.root_dir = os.path.abspath(self.config.paths.PATH_TO_DATASET)
+		self.dataset_folders = [os.path.join(self.root_dir,_) for _ in self.config.paths.DATASET_NAMES]
 		self.transform = transform
 		self.word2idx = word2idx
 		self.dataset_vocab = dataset_vocab
-		self.file_list = self.get_list_of_docs(self.root_dir)
-
-		if config is not None:
-			self.config = config
+		self.file_list = self.get_list_of_docs(self.dataset_folders)
+		
 		
 	def __len__(self):
 		return len(self.file_list)
 
 	def __getitem__(self, idx):
-		_path = os.path.join(self.root_dir,self.file_list[idx])
-		
+		_path = self.file_list[idx]
 		with open(_path) as file:
 			text = file.read()
 			text = text.replace('-LRB-','(')
@@ -73,6 +81,7 @@ class TextDataset():
 
 		story_tokens = self.make_tensor_from_string(story)
 		highlights_tokens = self.make_tensor_from_string(highlights)
-			 
-		return story_tokens,highlights_tokens
 
+		story = story.split('\n\n')
+
+		return {'raw':story,'tensor':story_tokens},{'raw':highlights,'tensor':highlights_tokens}

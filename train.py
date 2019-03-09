@@ -23,11 +23,14 @@ def main():
 	
 	word2idx,dataset_vectors = load_target_vocab(config)
 
+	use_safe_dataset = True
 	dataset = TextDataset(word2idx,dataset_vectors,config=config)
-	# dataset = nc.SafeDataset(dataset)
-	data_loader = datautil.DataLoader(dataset=dataset,batch_size=config.globals.BATCH_SIZE,num_workers=4,shuffle=False)
+	if use_safe_dataset:
+		dataset = nc.SafeDataset(dataset)
+		data_loader = nc.SafeDataLoader(dataset=dataset,batch_size=config.globals.BATCH_SIZE,num_workers=0,shuffle=True)
+	else:
+		data_loader = datautil.DataLoader(dataset=dataset,batch_size=config.globals.BATCH_SIZE,num_workers=0,shuffle=False)
 
-	# data_loader = nc.SafeDataLoader(dataset=dataset,batch_size=config.globals.BATCH_SIZE,num_workers=1,shuffle=True)
 	# model = SentenceEncoder(target_vocab = word2idx.keys(), vectors = dataset_vectors, config = config)
 	# doc_enc = DocumentEncoder(config=config)
 	
@@ -43,66 +46,56 @@ def main():
 	def select_action(config,doc,state):
 		# TODO: fix the function to handle the full batchsize
 		# TODO: send all tensors to GPU
-		"""
-		doc contains sentences
-		"""
+
 		sample = np.random.random()
+
+		# article = '\n'.join(doc['raw'])		
+		# article = article.split('\n\n')
+		doc_tensor = doc['tensor'][:,:len(doc['raw'])-1]
 		# Putting this here as we need q_values one way or the other
-		q_values = policy_net(doc,get_q_approx=True,sum_i=state['sum_i'])
+		q_values = policy_net(doc_tensor,get_q_approx=True,sum_i=state['sum_i'])
 
-		if iter%1000 == 0:
+		# Decay the epsilon per EPS_DECAY_ITER iterations
+		if iter % config.dqn.EPS_DECAY_ITER == 0:
 			config.dqn.EPS_START -= config.dqn.EPS_DECAY
-		if sample < config.dqn.EPS_START:
-			i = np.random.randint(low=0,high=doc.shape[1]-1)
-			a_i = (i,doc[0,i])
-		else:
-			# sentence representation are calculated as no grad because we dont want to disturb / update the weights 
-			# when calculating sentence represntations only the Q^{i}_{j}(s,a) function needs update, as the sencence 
-			# and document encoders are updated later in the code. 
-			
-			# actions are sentences
-			# TODO: check if we really need no_grad()
-			# with torch.no_grad():
-			# q_values = policy_net(doc,get_q_approx=True,sum_i=state['sum_i'])
+			print (config.dqn.EPS_START)
 
-			i = torch.argmax(q_values)
-			a_i = (i,doc[0,i])
+		if sample < config.dqn.EPS_START:
+			i = np.random.randint(low=0,high=len(doc['raw'])-1)
+		else:
+			# actions are sentences
+			i = torch.argmax(q_values,dim=1)
+
+		a_i = (i,doc['raw'][i])
 		return a_i,q_values
 
 	optimizer = torch.optim.RMSprop(policy_net.parameters())
 	memory = ReplayMemory(config.dqn.REPLAY_MEM_SIZE)
 	
-	__i = 3
 	epoch = 0
 	iter = 0
 	
 	for epoch in tqdm(range(epoch,config.globals.NUM_EPOCHS)):
 		policy_net.train()
-		state = {'curr_summary_ids':[],'curr_summary':[],'sum_i':torch.zeros((100))}
-		for i,(story,highlights,text) in tqdm(enumerate(data_loader)):
+		for i,(story,highlights) in tqdm(enumerate(data_loader)):
+
+			state = {'curr_summary_ids':[],'curr_summary':[],'sum_i':torch.zeros((100))}
 			iter = iter + 1
 
-			if i>3:
-				break
+			# if i>20 : break
+
+			story['tensor'] = story['tensor'].to(device)
+			highlights['tensor'] = highlights['tensor'].to(device)
+			# sentence representation are calculated as no grad because we dont want to disturb / update the weights 
+			with torch.no_grad():
+				H_i,D_i,x = policy_net(story['tensor'][:,:len(story['raw'])-1])
+
+			a_i,q_values = select_action(config,story,state)
 			
-			story = story.to(device)
-			highlights = highlights.to(device)
-			print (text)
-			
-			# # Hidden representations for the document's sentences
-			# # Squeezed, cause batch_size is 1
-			# H_i,D_i,x = policy_net(story)
-			# H_i.squeeze_(0)
-			# print (np.array(text).shape)
-			# print (np.array(text)[0])
-			# a_i,q_values = select_action(config,story,state)
-			# print (text)
-			# state['curr_summary_ids'].append(int(a_i[0]))
-			# state['curr_summary'].append(a_i[1])
-			# state['sum_i'] = Sum_i(H_i,state['curr_summary_ids'],q_values)
-			# # print (a_i[1])
-			# reward_func.get_reward(state['curr_summary'],gold_summ=text)
-			# # get_reward(highlights,p)
+			state['curr_summary_ids'].append(int(a_i[0]))
+			state['curr_summary'].append(a_i[1])
+			state['sum_i'] = Sum_i(H_i,state['curr_summary_ids'],q_values)
+			r_i = reward_func.get_reward([state['curr_summary']],gold_summ=[[highlights['raw']]])
 			
 			
 
@@ -115,42 +108,6 @@ def test_logic():
 	print (k)
 	print (a)
 	print (b)
-
-def worker():
-	from glob import glob
-	files = glob('/home/codexetreme/Desktop/datasets/armageddon_dataset/dm_stories_tokenized/*')
-	data_num = len(files)
-
-	examples = []
-	for f in files:
-		parts = open(f,encoding='latin-1').read().split('\n\n')
-		try:
-			entities = { line.strip().split(':')[0]:line.strip().split(':')[1].lower() for line in parts[-1].split('\n')}
-		except:
-			continue
-		print (entities)
-		sents,labels,summaries = [],[],[]
-		# content
-		for line in parts[1].strip().split('\n'):
-			content, label = line.split('\t\t\t')
-			tokens = content.strip().split()
-			for i,token in enumerate(tokens):
-				if token in entities:
-					tokens[i] = entities[token]
-			label = '1' if label == '1' else '0'
-			sents.append(' '.join(tokens))
-			labels.append(label)
-		# summary
-		for line in parts[2].strip().split('\n'):
-			tokens = line.strip().split()
-			for i, token in enumerate(tokens):
-				if token in entities:
-					tokens[i] = entities[token]
-			line = ' '.join(tokens).replace('*','')
-			summaries.append(line)
-		ex = {'doc':'\n'.join(sents),'labels':'\n'.join(labels),'summaries':'\n'.join(summaries)}
-		examples.append(ex)
-	return examples
 
 if __name__ == '__main__':
 	main()

@@ -89,13 +89,14 @@ class DocumentEncoder(nn.Module):
         D_i,output(ie,H_i)
         '''
         output,h_n = self.gru_layer(x)
+        H_i = output
         n_d = output.shape[1]
         output = torch.sum(output,dim=1)
         output = output/n_d
         output = self.linear(output)
         output = output+self.bias
         D_i = torch.tanh(output)
+        # D_i =  h_n    
         # print ('Document_encoder_shape',D_i.shape)
-        # print ('output_shape',output.shape)
-        return D_i,output
+        return D_i,H_i
 

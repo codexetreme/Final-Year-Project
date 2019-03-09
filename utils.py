@@ -97,7 +97,7 @@ def make_target_vocab(config):
 	targetwords2id['<UNK>'] = 3
 	
 	# for the vectors for these 4 words above, since these arent present in the glove vectors
-	vect = np.random.normal(scale=0.6,size=(4*config.dataset_options.WORD_DIMENTIONS, ))
+	vect = np.random.zeros(size=(4*config.dataset_options.WORD_DIMENTIONS, ))
 	vectors.append(vect )
 
 	idx = 4

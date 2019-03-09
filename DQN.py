@@ -41,15 +41,15 @@ def Sum_i(h_values,h_idx,q_values):
 	denominator is the sum of q_values of all sentences in the doc
 	"""
 	
-	denom = torch.sum(q_values) # [1]
+	denom = torch.sum(q_values,dim=1) # [1]
 	# this vecotrizes the summation operation
-	sum = torch.matmul(q_values[h_idx],h_values[h_idx]) # [100]
+	sum = torch.matmul(q_values[:,h_idx],h_values[:,h_idx]).squeeze() # [100]
 	return sum/denom # [100]
 
 
 class Q_i_j(nn.Module):
 	'''
-	This module calculates the Q_{i}^{j} approximation function.
+	This module calculates the Q^{i}_{j} approximation function.
 
 	The salience, content, novelty and the posistion embeddings are calculated as shown in nallapati et al, SummaRuNNer
 
@@ -107,7 +107,7 @@ class Q_i_j(nn.Module):
 			self.rel_pos_embed = nn.Embedding(seg_num,pos_dim)
 			self.rel_pos = nn.Linear(pos_dim,1,bias=False)
 
-	def forward(self,h,h_idx,doc_len,D_i,sum_i,multiply_h=False):
+	def forward(self,h,h_idx,doc_len,D_i,sum_i):
 		"""
 		Forward pass of the Q_i_j approximation function
 		
@@ -133,14 +133,7 @@ class Q_i_j(nn.Module):
 			rel_features = self.rel_pos_embed(torch.LongTensor([[h_rel_id]])).squeeze(0)
 			rel_p = self.rel_pos(rel_features)
 			q_value = q_value + rel_p
-		
-		if multiply_h:
-			s = torch.zeros(1,self.hidden_size)
-			s = s + torch.mm(prob,h)
-		else:
-			# just renaming it so we can have only 1 return statement
-			s = q_value
-		return s
+		return q_value
 
 
 
@@ -170,14 +163,13 @@ class DQN(nn.Module):
 		if get_q_approx:
 			q_values = []
 			for _ in range(self.config.globals.BATCH_SIZE):
-				H_i = H_i[_]
-				# print (H_i)
-				for i,h in enumerate(H_i):
+				sentences = H_i[_]
+				for i,h in enumerate(sentences):
 					# H_i => all actions possible
-					q = self.Q_func(h,h_idx=i,doc_len=len(H_i),D_i=D_i[_],sum_i=sum_i)
+					q = self.Q_func(h,h_idx=i,doc_len=len(sentences),D_i=D_i[_],sum_i=sum_i)
 					q_values.append(q)
 					pass
-			return torch.Tensor(q_values)
+			return torch.Tensor(q_values).view(self.config.globals.BATCH_SIZE,-1)
 		return H_i,D_i,x
 
 
