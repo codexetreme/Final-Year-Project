@@ -1,1 +1,1 @@
-web: gunicorn inference:api
+web: gunicorn wsgi:app
