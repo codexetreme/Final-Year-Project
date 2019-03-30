@@ -9,7 +9,6 @@ from pythonrouge.pythonrouge import Pythonrouge
 class Reward():
     def __init__(self):
         # self.pythonrouge()
-        print ('yoyo')
     # def pythonrouge(self):
     #     # initialize setting of ROUGE to eval ROUGE-1, 2, SU4
     #     # if you evaluate ROUGE by sentence list as above, set summary_file_exist=False
@@ -23,7 +22,15 @@ class Reward():
     #                     use_cf=False, cf=95, scoring_formula='average',
     #                     resampling=True, samples=1000, favor=True, p=0.5)
 
-    def get_reward(self,predicted_summ,gold_summ):
+    def get_reward(self,config,predicted_summ,gold_summ,**kwargs):
+        l = len(predicted_summ)
+        if l > config.globals.SUMMARY_LENGTH:
+            return -1
+        else:
+            return self.__get_score(predicted_summ,gold_summ,kwargs)
+
+
+    def __get_score(self,predicted_summ,gold_summ,**kwargs):
         summary=gold_summ
         reference=predicted_summ
         self.rouge = Pythonrouge(summary_file_exist=False,
@@ -37,7 +44,11 @@ class Reward():
         self.rouge.reference = predicted_summ
         score = self.rouge.calc_score()
         score=score['ROUGE-1'] + score['ROUGE-2']*5 + score['ROUGE-3']*2 +score['ROUGE-L']*2
-        return score
+        config = kwargs['config']
+        score = kwargs['prev_score']- score 
+        if (score > config.dqn_options.ERROR_THRESH):
+            return score
+        return -1
     
 
 
